@@ -17,7 +17,7 @@ services:
     environment:
       - PORT=5000
       - DATABASE_URL=postgres://user:password@postgres:5432/child_exchange
-      - JWT_SECRET=your_jwt_secret_here
+      - JWT_SECRET=R329!gklsM3@lkf2k3T8%lS0w1T7gD6p4R5b
     ports:
       - "5000:5000"
     depends_on:
