@@ -18,7 +18,7 @@ function AnnouncementDetails() {
   useEffect(() => {
     const fetchAnnouncement = async () => {
       try {
-        const response = await api.get(`/api/announcements/${id}`);
+        const response = await api.get(`/announcements/${id}`);
         setAnnouncement(response.data);
         setFormData({
           title: response.data.title,
@@ -40,7 +40,7 @@ function AnnouncementDetails() {
   const handleUpdate = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await api.put(`/api/announcements/${id}`, formData, {
+      const response = await api.put(`/announcements/${id}`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAnnouncement(response.data);
@@ -55,7 +55,7 @@ function AnnouncementDetails() {
   const handleDelete = async () => {
     try {
       const token = localStorage.getItem('token');
-      await api.delete(`/api/announcements/${id}`, {
+      await api.delete(`/announcements/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       navigate('/profile');

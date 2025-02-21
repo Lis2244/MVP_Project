@@ -11,7 +11,7 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
+      const endpoint = isRegister ? '/auth/register' : '/auth/login';
       const response = await api.post(endpoint, { email, password, location });
       localStorage.setItem('token', response.data.token);
       setMessage('Успешная авторизация!');

@@ -8,7 +8,7 @@ function Announcements() {
 
   const fetchAnnouncements = async () => {
     try {
-      const response = await api.get(`/api/announcements?search=${search}`);
+      const response = await api.get(`/announcements?search=${search}`);
       setAnnouncements(response.data);
     } catch (error) {
       console.error(error);

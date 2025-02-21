@@ -8,7 +8,7 @@ function Profile() {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await api.get('/api/users/me', {
+      const response = await api.get('/users/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setProfile(response.data);
