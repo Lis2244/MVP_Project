@@ -8,6 +8,16 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+const morgan = require('morgan');
+const logger = require('./logger'); // Если logger.js находится в корне backend
+
+// Добавляем middleware morgan для логирования HTTP-запросов через winston
+app.use(morgan('combined', {
+  stream: {
+    write: (message) => logger.info(message.trim())
+  }
+}));
+
 // Раздача статичных файлов (например, обработанных изображений)
 const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

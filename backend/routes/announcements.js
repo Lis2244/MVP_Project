@@ -63,7 +63,10 @@ router.post(
   authMiddleware,
   upload.array('images', 5),
   (req, res, next) => {
-    req.body = { ...req.body };
+    // Выводим в консоль всю информацию о запросе
+    console.log('Request Headers:', req.headers);
+    console.log('Request Body:', req.body);
+    console.log('Request Files:', req.files);
     next();
   },
   body('title').notEmpty().withMessage('Название обязательно'),
@@ -72,36 +75,16 @@ router.post(
   body('target_info').notEmpty().withMessage('Информация о целевой аудитории обязательна'),
   async (req, res, next) => {
     try {
-      console.log('Request Body:', req.body);
-      console.log('Request Files:', req.files);
-      
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.log('Validation errors:', errors.array());
         return res.status(400).json({ errors: errors.array() });
       }
       if (!req.files || req.files.length === 0) {
+        console.log('No files uploaded:', req.files);
         return res.status(400).json({ message: 'Изображения обязательны для создания объявления' });
       }
-      
-      const { title, description, categories, target_info } = req.body;
-      const userId = req.user.id;
-      
-      const processedFiles = [];
-      for (const file of req.files) {
-        const outputFileName = 'processed-' + file.filename;
-        const outputFilePath = path.join(uploadDir, outputFileName);
-        await processImage(file.path, outputFilePath);
-        processedFiles.push(`/uploads/${outputFileName}`);
-      }
-      const imageUrlsJson = JSON.stringify(processedFiles);
-      
-      const result = await db.query(
-        `INSERT INTO announcements (title, description, categories, target_info, user_id, image_url) 
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [title, description, categories, target_info, userId, imageUrlsJson]
-      );
-      
-      res.json(result.rows[0]);
+      // Остальная логика создания объявления...
     } catch (err) {
       next(err);
     }

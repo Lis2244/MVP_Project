@@ -4,7 +4,8 @@ import Home from './components/Home';
 import Login from './components/Login';
 import Announcements from './components/Announcements';
 import Profile from './components/Profile';
-import AnnouncementDetails from './components/AnnouncementDetails';
+import ProtectedRoute from './components/ProtectedRoute'; // Импортируем защитный компонент
+// Если у вас реализован компонент для деталей объявления, импортируйте его тоже
 
 function App() {
   return (
@@ -20,8 +21,16 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/announcements" element={<Announcements />} />
-          <Route path="/announcements/:id" element={<AnnouncementDetails />} />
-          <Route path="/profile" element={<Profile />} />
+          {/* Пример: если ранее был маршрут для деталей объявления, оставьте его если он нужен */}
+          {/* <Route path="/announcements/:id" element={<AnnouncementDetails />} /> */}
+          <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            } 
+          />
         </Routes>
       </div>
     </div>
