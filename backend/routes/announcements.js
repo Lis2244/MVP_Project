@@ -63,7 +63,7 @@ router.post(
   authMiddleware,
   upload.array('images', 5),
   (req, res, next) => {
-    // Выводим в консоль всю информацию о запросе
+    // Логирование запроса
     console.log('Request Headers:', req.headers);
     console.log('Request Body:', req.body);
     console.log('Request Files:', req.files);
@@ -75,18 +75,44 @@ router.post(
   body('target_info').notEmpty().withMessage('Информация о целевой аудитории обязательна'),
   async (req, res, next) => {
     try {
+      // Валидация полей
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         console.log('Validation errors:', errors.array());
         return res.status(400).json({ errors: errors.array() });
       }
+
+      // Проверка наличия файлов
       if (!req.files || req.files.length === 0) {
         console.log('No files uploaded:', req.files);
         return res.status(400).json({ message: 'Изображения обязательны для создания объявления' });
       }
-      // Остальная логика создания объявления...
+
+      // Обработка файлов
+      const processedFiles = [];
+      for (const file of req.files) {
+        const outputFileName = 'processed-' + file.filename;
+        const outputFilePath = path.join(uploadDir, outputFileName);
+        await processImage(file.path, outputFilePath); // Обработка изображения
+        processedFiles.push(`/uploads/${outputFileName}`);
+      }
+
+      // Сохранение объявления в базу данных
+      const { title, description, categories, target_info } = req.body;
+      const userId = req.user.id; // ID пользователя из middleware auth
+
+      const result = await db.query(
+        `INSERT INTO announcements (title, description, categories, target_info, image_url, user_id)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [title, description, categories, target_info, JSON.stringify(processedFiles), userId]
+      );
+
+      // Отправка ответа
+      res.status(201).json(result.rows[0]);
     } catch (err) {
-      next(err);
+      console.error('Ошибка при создании объявления:', err);
+      res.status(500).json({ message: 'Ошибка при создании объявления' });
     }
   }
 );
