@@ -22,6 +22,9 @@ app.use(morgan('combined', {
 const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Обслуживание статических файлов из папки frontend/build
+app.use(express.static(path.join(__dirname, '../frontend/build')));
+
 // Подключаем маршруты
 const authRoutes = require('./routes/auth');
 const announcementRoutes = require('./routes/announcements');
@@ -34,6 +37,11 @@ app.use('/api/users', userRoutes);
 // Корневой маршрут для проверки работы API
 app.get('/', (req, res) => {
   res.send('API is running');
+});
+
+// Маршрут для всех остальных запросов (чтобы React Router работал на фронтенде)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/build', 'index.html'));
 });
 
 // Глобальный обработчик ошибок
