@@ -20,6 +20,8 @@ services:
       - JWT_SECRET=R329!gklsM3@lkf2k3T8%lS0w1T7gD6p4R5b
     ports:
       - "5000:5000"
+    volumes:
+      - ./backend/uploads:/usr/src/app/uploads  # Монтируем папку uploads
     depends_on:
       - postgres
 

@@ -63,7 +63,6 @@ router.post(
   authMiddleware,
   upload.array('images', 5),
   (req, res, next) => {
-    // Логирование запроса
     console.log('Request Headers:', req.headers);
     console.log('Request Body:', req.body);
     console.log('Request Files:', req.files);
@@ -93,8 +92,15 @@ router.post(
       for (const file of req.files) {
         const outputFileName = 'processed-' + file.filename;
         const outputFilePath = path.join(uploadDir, outputFileName);
-        await processImage(file.path, outputFilePath); // Обработка изображения
+
+        // Обработка изображения
+        await processImage(file.path, outputFilePath);
+
+        // Добавляем путь к обработанному файлу
         processedFiles.push(`/uploads/${outputFileName}`);
+
+        // Удаляем оригинальный файл после обработки
+        fs.unlinkSync(file.path);
       }
 
       // Сохранение объявления в базу данных
@@ -205,12 +211,34 @@ router.delete(
     try {
       const announcementId = req.params.id;
       const userId = req.user.id;
-      
+
+      // Получаем объявление, чтобы извлечь пути к изображениям
       const { rows } = await db.query('SELECT * FROM announcements WHERE id = $1 AND user_id = $2', [announcementId, userId]);
       if (rows.length === 0) {
         return res.status(403).json({ message: 'Доступ запрещен' });
       }
-      
+
+      const announcement = rows[0];
+
+      // Удаляем связанные изображения
+      if (announcement.image_url) {
+        try {
+          const imagePaths = JSON.parse(announcement.image_url);
+          imagePaths.forEach(imagePath => {
+            const fullPath = path.join(__dirname, '..', imagePath); // Полный путь к файлу
+            if (fs.existsSync(fullPath)) {
+              fs.unlinkSync(fullPath); // Удаляем файл
+              console.log('Файл удален:', fullPath);
+            } else {
+              console.log('Файл не найден:', fullPath);
+            }
+          });
+        } catch (error) {
+          console.error('Ошибка при удалении файлов:', error);
+        }
+      }
+
+      // Удаляем объявление из базы данных
       await db.query('DELETE FROM announcements WHERE id = $1 AND user_id = $2', [announcementId, userId]);
       res.json({ message: 'Объявление успешно удалено' });
     } catch (err) {

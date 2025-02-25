@@ -1,25 +1,29 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const morgan = require('morgan');
+const logger = require('./logger'); // Убедитесь, что logger.js находится в корне backend
 require('dotenv').config();
 
 const app = express();
 
-// Парсинг JSON и CORS
+// Парсинг JSON
 app.use(express.json());
-app.use(cors());
 
-const morgan = require('morgan');
-const logger = require('./logger'); // Если logger.js находится в корне backend
+// Настройка CORS
+app.use(cors({
+  origin: 'http://localhost:3000', // Укажите адрес вашего фронтенда
+  credentials: true,
+}));
 
-// Добавляем middleware morgan для логирования HTTP-запросов через winston
+// Логирование HTTP-запросов
 app.use(morgan('combined', {
   stream: {
-    write: (message) => logger.info(message.trim())
-  }
+    write: (message) => logger.info(message.trim()),
+  },
 }));
 
 // Раздача статичных файлов (например, обработанных изображений)
-const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Обслуживание статических файлов из папки frontend/build
