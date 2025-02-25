@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // Импортируем useNavigate для перенаправления
 import api from '../services/api';
 
 function Profile() {
@@ -6,6 +7,13 @@ function Profile() {
   const [editingId, setEditingId] = useState(null);
   const [editData, setEditData] = useState({});
   const [message, setMessage] = useState('');
+  const navigate = useNavigate(); // Хук для перенаправления
+
+  // Функция для выхода из профиля
+  const handleLogout = () => {
+    localStorage.removeItem('token'); // Удаляем токен из localStorage
+    navigate('/login'); // Перенаправляем на страницу входа
+  };
 
   // Функция для получения данных профиля
   const fetchProfile = async () => {
@@ -93,7 +101,15 @@ function Profile() {
 
   return (
     <div className="max-w-3xl mx-auto p-6">
-      <h2 className="text-3xl font-bold mb-4">Профиль</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-3xl font-bold">Профиль</h2>
+        <button
+          onClick={handleLogout}
+          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+        >
+          Выйти
+        </button>
+      </div>
       <p className="mb-4"><strong>Email:</strong> {profile.user.email}</p>
       <p className="mb-4"><strong>Регион/город:</strong> {profile.user.location}</p>
       <h3 className="text-2xl font-semibold mb-4">Ваши объявления</h3>
