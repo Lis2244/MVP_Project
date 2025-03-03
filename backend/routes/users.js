@@ -19,4 +19,28 @@ router.get('/me', authMiddleware, async (req, res, next) => {
   }
 });
 
+router.put('/me', authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { children } = req.body;
+
+    // Проверка, что children - это массив
+    if (!Array.isArray(children)) {
+      return res.status(400).json({ message: 'Поле children должно быть массивом' });
+    }
+
+    // Обновление данных пользователя в базе данных
+    const result = await db.query(
+      'UPDATE users SET children = $1 WHERE id = $2 RETURNING id, email, location, children',
+      [JSON.stringify(children), userId]
+    );
+
+    // Отправка обновленных данных пользователя
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Ошибка при обновлении профиля:', err);
+    res.status(500).json({ message: 'Ошибка при обновлении профиля' });
+  }
+});
+
 module.exports = router;
