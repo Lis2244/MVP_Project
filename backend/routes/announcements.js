@@ -32,12 +32,42 @@ router.get(
 );
 
 /**
+ * GET /api/announcements/my
+ * Получение списка объявлений текущего пользователя.
+ */
+router.get(
+  '/my',
+  authMiddleware,
+  async (req, res, next) => {
+    try {
+      const userId = req.user.id;
+      if (!userId) {
+        return res.status(400).json({ message: 'ID пользователя не найден' });
+      }
+
+      const result = await db.query(
+        `SELECT * FROM announcements WHERE user_id = $1 ORDER BY id DESC`,
+        [userId]
+      );
+      res.json(result.rows);
+    } catch (err) {
+      console.error('Ошибка при получении объявлений:', err);
+      res.status(500).json({ message: 'Ошибка сервера', error: err.message });
+    }
+  }
+);
+
+/**
  * GET /api/announcements/:id
  * Получение полного объявления по id.
  */
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
+    if (isNaN(id)) {
+      return res.status(400).json({ message: 'ID должен быть числом' });
+    }
+
     const result = await db.query(
       `SELECT a.*, u.email FROM announcements a 
        JOIN users u ON a.user_id = u.id 
@@ -143,14 +173,18 @@ router.put(
     try {
       const announcementId = req.params.id;
       const userId = req.user.id;
-      
+
+      if (isNaN(announcementId)) {
+        return res.status(400).json({ message: 'ID должен быть числом' });
+      }
+
       const { rows } = await db.query('SELECT * FROM announcements WHERE id = $1 AND user_id = $2', [announcementId, userId]);
       if (rows.length === 0) {
         return res.status(403).json({ message: 'Доступ запрещен' });
       }
-      
+
       const { title, description, categories, target_info } = req.body;
-      
+
       let imageUrlsJson;
       if (req.files && req.files.length > 0) {
         const processedFiles = [];
@@ -162,7 +196,7 @@ router.put(
         }
         imageUrlsJson = JSON.stringify(processedFiles);
       }
-      
+
       const fields = [];
       const values = [];
       let idx = 1;
@@ -189,7 +223,7 @@ router.put(
       if (fields.length === 0) {
         return res.status(400).json({ message: 'Нет данных для обновления' });
       }
-      
+
       values.push(announcementId, userId);
       const queryText = `UPDATE announcements SET ${fields.join(', ')} WHERE id = $${idx++} AND user_id = $${idx} RETURNING *`;
       const updateResult = await db.query(queryText, values);
@@ -211,6 +245,10 @@ router.delete(
     try {
       const announcementId = req.params.id;
       const userId = req.user.id;
+
+      if (isNaN(announcementId)) {
+        return res.status(400).json({ message: 'ID должен быть числом' });
+      }
 
       // Получаем объявление, чтобы извлечь пути к изображениям
       const { rows } = await db.query('SELECT * FROM announcements WHERE id = $1 AND user_id = $2', [announcementId, userId]);

@@ -4,8 +4,8 @@ import Home from './components/Home';
 import Login from './components/Login';
 import Announcements from './components/Announcements';
 import Profile from './components/Profile';
-import ProtectedRoute from './components/ProtectedRoute'; // Импортируем защитный компонент
-// Если у вас реализован компонент для деталей объявления, импортируйте его тоже
+import ProtectedRoute from './components/ProtectedRoute';
+import MyAnnouncements from './components/MyAnnouncements';
 
 function App() {
   return (
@@ -14,6 +14,7 @@ function App() {
         <Link className="mr-4" to="/">Главная</Link>
         <Link className="mr-4" to="/login">Авторизация</Link>
         <Link className="mr-4" to="/announcements">Объявления</Link>
+        <Link className="mr-4" to="/my-announcements">Мои объявления</Link>
         <Link to="/profile">Профиль</Link>
       </nav>
       <div className="p-4">
@@ -21,15 +22,21 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/announcements" element={<Announcements />} />
-          {/* Пример: если ранее был маршрут для деталей объявления, оставьте его если он нужен */}
-          {/* <Route path="/announcements/:id" element={<AnnouncementDetails />} /> */}
-          <Route 
-            path="/profile" 
+          <Route
+            path="/my-announcements"
+            element={
+              <ProtectedRoute>
+                <MyAnnouncements />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
             element={
               <ProtectedRoute>
                 <Profile />
               </ProtectedRoute>
-            } 
+            }
           />
         </Routes>
       </div>
