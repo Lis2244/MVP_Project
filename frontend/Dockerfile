@@ -6,6 +6,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
+# Установка react-icons
+RUN npm install react-icons
+
 COPY . .
 
 RUN npm run build
