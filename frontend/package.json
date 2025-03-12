@@ -9,9 +9,11 @@
         "react-dom": "^18.2.0",
         "react-router-dom": "^6.4.2",
         "react-scripts": "5.0.1",
+        "react-select": "^5.10.1",
         "react-slick": "^0.30.3",
         "slick-carousel": "^1.8.1",
-        "swiper": "^11.2.4"
+        "swiper": "^11.2.4",
+        "yet-another-react-lightbox": "^3.21.7"
     },
     "devDependencies": {
         "autoprefixer": "^10.4.13",

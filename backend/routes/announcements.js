@@ -9,24 +9,52 @@ const fs = require('fs');
 
 /**
  * GET /api/announcements
- * Получение списка объявлений с фильтрацией по названию.
+ * Получение списка объявлений с фильтрацией по названию, возрасту и городу.
  */
 router.get(
   '/',
   query('search').optional(),
+  query('age').optional(),
+  query('city').optional(),
   async (req, res, next) => {
     try {
-      const search = req.query.search || '';
-      const result = await db.query(
-        `SELECT a.*, u.email FROM announcements a 
-         JOIN users u ON a.user_id = u.id 
-         WHERE a.title ILIKE $1 
-         ORDER BY a.id DESC`,
-        [`%${search}%`]
-      );
+      const { search, age, city } = req.query;
+
+      // Базовый запрос
+      let queryText = `
+        SELECT a.*, u.email 
+        FROM announcements a 
+        JOIN users u ON a.user_id = u.id 
+        WHERE 1=1
+      `;
+      const queryParams = [];
+
+      // Фильтрация по названию
+      if (search) {
+        queryText += ` AND a.title ILIKE $${queryParams.length + 1}`;
+        queryParams.push(`%${search}%`);
+      }
+
+      // Фильтрация по возрасту
+      if (age) {
+        queryText += ` AND a.target_info = $${queryParams.length + 1}`;
+        queryParams.push(age);
+      }
+
+      // Фильтрация по городу
+      if (city) {
+        queryText += ` AND a.location ILIKE $${queryParams.length + 1}`;
+        queryParams.push(`%${city}%`);
+      }
+
+      // Сортировка по дате создания (новые сначала)
+      queryText += ' ORDER BY a.id DESC';
+
+      const result = await db.query(queryText, queryParams);
       res.json(result.rows);
     } catch (err) {
-      next(err);
+      console.error('Ошибка при получении объявлений:', err);
+      res.status(500).json({ message: 'Ошибка сервера', error: err.message });
     }
   }
 );
@@ -79,7 +107,8 @@ router.get('/:id', async (req, res, next) => {
     }
     res.json(result.rows[0]);
   } catch (err) {
-    next(err);
+    console.error('Ошибка при получении объявления:', err);
+    res.status(500).json({ message: 'Ошибка сервера', error: err.message });
   }
 });
 
@@ -92,12 +121,6 @@ router.post(
   '/',
   authMiddleware,
   upload.array('images', 5),
-  (req, res, next) => {
-    console.log('Request Headers:', req.headers);
-    console.log('Request Body:', req.body);
-    console.log('Request Files:', req.files);
-    next();
-  },
   body('title').notEmpty().withMessage('Название обязательно'),
   body('description').notEmpty().withMessage('Описание обязательно'),
   body('categories').notEmpty().withMessage('Выберите хотя бы одну категорию'),
@@ -107,13 +130,11 @@ router.post(
       // Валидация полей
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        console.log('Validation errors:', errors.array());
         return res.status(400).json({ errors: errors.array() });
       }
 
       // Проверка наличия файлов
       if (!req.files || req.files.length === 0) {
-        console.log('No files uploaded:', req.files);
         return res.status(400).json({ message: 'Изображения обязательны для создания объявления' });
       }
 
@@ -135,7 +156,7 @@ router.post(
 
       // Сохранение объявления в базу данных
       const { title, description, categories, target_info } = req.body;
-      const userId = req.user.id; // ID пользователя из middleware auth
+      const userId = req.user.id;
 
       const result = await db.query(
         `INSERT INTO announcements (title, description, categories, target_info, image_url, user_id)
@@ -144,7 +165,6 @@ router.post(
         [title, description, categories, target_info, JSON.stringify(processedFiles), userId]
       );
 
-      // Отправка ответа
       res.status(201).json(result.rows[0]);
     } catch (err) {
       console.error('Ошибка при создании объявления:', err);
@@ -159,30 +179,24 @@ router.post(
  */
 router.put(
   '/:id',
-  authMiddleware,
+  authMiddleware, // Подключение middleware
   upload.array('images', 5),
-  (req, res, next) => {
-    req.body = { ...req.body };
-    next();
-  },
-  body('title').optional().notEmpty().withMessage('Название не может быть пустым'),
-  body('description').optional().notEmpty().withMessage('Описание не может быть пустым'),
-  body('categories').optional().notEmpty().withMessage('Категории не могут быть пустыми'),
-  body('target_info').optional().notEmpty().withMessage('Информация не может быть пустой'),
   async (req, res, next) => {
     try {
       const announcementId = req.params.id;
-      const userId = req.user.id;
+      const userId = req.user.id; // Данные пользователя из middleware
 
       if (isNaN(announcementId)) {
         return res.status(400).json({ message: 'ID должен быть числом' });
       }
 
+      // Проверка прав доступа
       const { rows } = await db.query('SELECT * FROM announcements WHERE id = $1 AND user_id = $2', [announcementId, userId]);
       if (rows.length === 0) {
         return res.status(403).json({ message: 'Доступ запрещен' });
       }
 
+      // Логика обновления объявления
       const { title, description, categories, target_info } = req.body;
 
       let imageUrlsJson;
@@ -197,6 +211,7 @@ router.put(
         imageUrlsJson = JSON.stringify(processedFiles);
       }
 
+      // Подготовка полей для обновления
       const fields = [];
       const values = [];
       let idx = 1;
@@ -229,7 +244,8 @@ router.put(
       const updateResult = await db.query(queryText, values);
       res.json(updateResult.rows[0]);
     } catch (err) {
-      next(err);
+      console.error('Ошибка при обновлении объявления:', err);
+      res.status(500).json({ message: 'Ошибка сервера', error: err.message });
     }
   }
 );
@@ -250,7 +266,7 @@ router.delete(
         return res.status(400).json({ message: 'ID должен быть числом' });
       }
 
-      // Получаем объявление, чтобы извлечь пути к изображениям
+      // Проверка прав доступа
       const { rows } = await db.query('SELECT * FROM announcements WHERE id = $1 AND user_id = $2', [announcementId, userId]);
       if (rows.length === 0) {
         return res.status(403).json({ message: 'Доступ запрещен' });
@@ -258,14 +274,14 @@ router.delete(
 
       const announcement = rows[0];
 
-      // Удаляем связанные изображения
+      // Удаление связанных изображений
       if (announcement.image_url) {
         try {
           const imagePaths = JSON.parse(announcement.image_url);
           imagePaths.forEach(imagePath => {
-            const fullPath = path.join(__dirname, '..', imagePath); // Полный путь к файлу
+            const fullPath = path.join(__dirname, '..', imagePath);
             if (fs.existsSync(fullPath)) {
-              fs.unlinkSync(fullPath); // Удаляем файл
+              fs.unlinkSync(fullPath);
               console.log('Файл удален:', fullPath);
             } else {
               console.log('Файл не найден:', fullPath);
@@ -276,11 +292,12 @@ router.delete(
         }
       }
 
-      // Удаляем объявление из базы данных
+      // Удаление объявления из базы данных
       await db.query('DELETE FROM announcements WHERE id = $1 AND user_id = $2', [announcementId, userId]);
       res.json({ message: 'Объявление успешно удалено' });
     } catch (err) {
-      next(err);
+      console.error('Ошибка при удалении объявления:', err);
+      res.status(500).json({ message: 'Ошибка сервера', error: err.message });
     }
   }
 );

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination } from 'swiper/modules';
+import Lightbox from 'yet-another-react-lightbox';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
-import api from '../services/api'; // Импортируем api
+import 'yet-another-react-lightbox/styles.css'; // Импорт стилей Lightbox
+import api from '../services/api';
 
 function EditAnnouncementModal({ announcement, onClose, onSave }) {
   const [title, setTitle] = useState(announcement.title);
@@ -12,8 +14,14 @@ function EditAnnouncementModal({ announcement, onClose, onSave }) {
   const [age, setAge] = useState(announcement.target_info);
   const [city, setCity] = useState(announcement.location);
   const [images, setImages] = useState(JSON.parse(announcement.image_url));
+  const [isSaving, setIsSaving] = useState(false); // Флаг для предотвращения двойного вызова
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false); // Состояние для открытия Lightbox
+  const [photoIndex, setPhotoIndex] = useState(0); // Индекс текущего изображения в Lightbox
 
   const handleSave = async () => {
+    if (isSaving) return; // Если запрос уже выполняется, выходим
+    setIsSaving(true); // Устанавливаем флаг, что запрос начался
+
     const updatedAnnouncement = {
       ...announcement,
       title,
@@ -27,6 +35,7 @@ function EditAnnouncementModal({ announcement, onClose, onSave }) {
       const token = localStorage.getItem('token');
       if (!token) {
         console.error('Токен отсутствует');
+        setIsSaving(false); // Сбрасываем флаг в случае ошибки
         return;
       }
 
@@ -43,6 +52,8 @@ function EditAnnouncementModal({ announcement, onClose, onSave }) {
       onSave(response.data); // Обновляем состояние в родительском компоненте
     } catch (error) {
       console.error('Ошибка при обновлении объявления:', error);
+    } finally {
+      setIsSaving(false); // Сбрасываем флаг после завершения запроса
     }
   };
 
@@ -82,6 +93,8 @@ function EditAnnouncementModal({ announcement, onClose, onSave }) {
           className="w-full border p-2 rounded mb-4"
           placeholder="Город/населённый пункт"
         />
+
+        {/* Слайдер с изображениями */}
         <Swiper
           modules={[Navigation, Pagination]}
           navigation
@@ -94,11 +107,27 @@ function EditAnnouncementModal({ announcement, onClose, onSave }) {
               <img
                 src={`http://localhost:5000${image}`}
                 alt={`Изображение ${index + 1}`}
-                className="w-full h-64 object-cover rounded"
+                className="w-full h-64 object-cover rounded cursor-pointer"
+                onClick={() => {
+                  setPhotoIndex(index);
+                  setIsLightboxOpen(true);
+                }}
               />
             </SwiperSlide>
           ))}
         </Swiper>
+
+        {/* Lightbox для увеличения изображений */}
+        {isLightboxOpen && (
+          <Lightbox
+            open={isLightboxOpen}
+            close={() => setIsLightboxOpen(false)}
+            slides={images.map((image) => ({ src: `http://localhost:5000${image}` }))}
+            index={photoIndex}
+          />
+        )}
+
+        {/* Кнопки для закрытия и сохранения */}
         <div className="mt-4 flex justify-end space-x-2">
           <button
             onClick={onClose}
@@ -108,9 +137,12 @@ function EditAnnouncementModal({ announcement, onClose, onSave }) {
           </button>
           <button
             onClick={handleSave}
-            className="bg-blue-500 text-white px-4 py-2 rounded"
+            disabled={isSaving} // Блокируем кнопку, если запрос выполняется
+            className={`bg-blue-500 text-white px-4 py-2 rounded ${
+              isSaving ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           >
-            Сохранить
+            {isSaving ? 'Сохранение...' : 'Сохранить'}
           </button>
         </div>
       </div>
