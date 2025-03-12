@@ -1,16 +1,30 @@
 import React, { useState } from 'react';
 import api from '../services/api';
-import Select from 'react-select'; // Импортируем react-select
-import { cities } from './cities'; // Импортируем список городов
+import AsyncSelect from 'react-select/async'; // Импортируем асинхронный Select
+import Select from 'react-select'; // Для других выпадающих списков
 
 const CreateAnnouncement = ({ onCreated }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [categories, setCategories] = useState('');
   const [targetInfo, setTargetInfo] = useState('');
-  const [location, setLocation] = useState(null); // Используем null для react-select
+  const [location, setLocation] = useState(null); // Для react-select
   const [images, setImages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Функция для асинхронной загрузки городов
+  const loadCities = async (inputValue) => {
+    try {
+      const response = await api.get(`/cities?search=${inputValue}`);
+      return response.data.map((city) => ({
+        value: city,
+        label: city,
+      }));
+    } catch (error) {
+      console.error('Ошибка при загрузке городов:', error);
+      return [];
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -59,46 +73,47 @@ const CreateAnnouncement = ({ onCreated }) => {
       />
 
       {/* Выпадающий список для категорий */}
-      <select
-        value={categories}
-        onChange={(e) => setCategories(e.target.value)}
-        className="w-full border p-2 rounded"
-        required
-      >
-        <option value="">Выберите категорию</option>
-        <option value="Одежда">Одежда</option>
-        <option value="Игрушки">Игрушки</option>
-        <option value="Коляски">Коляски</option>
-        <option value="Книги">Книги</option>
-        <option value="Мебель">Мебель</option>
-        <option value="Обувь">Обувь</option>
-        <option value="Аксессуары">Аксессуары</option>
-      </select>
+      <Select
+        options={[
+          { value: 'Одежда', label: 'Одежда' },
+          { value: 'Игрушки', label: 'Игрушки' },
+          { value: 'Коляски', label: 'Коляски' },
+          { value: 'Книги', label: 'Книги' },
+          { value: 'Мебель', label: 'Мебель' },
+          { value: 'Обувь', label: 'Обувь' },
+          { value: 'Аксессуары', label: 'Аксессуары' },
+        ]}
+        value={{ value: categories, label: categories }}
+        onChange={(selectedOption) => setCategories(selectedOption.value)}
+        placeholder="Выберите категорию"
+        className="w-full"
+        isSearchable
+      />
 
       {/* Выпадающий список для возраста */}
-      <select
-        value={targetInfo}
-        onChange={(e) => setTargetInfo(e.target.value)}
-        className="w-full border p-2 rounded"
-        required
-      >
-        <option value="">Выберите возраст</option>
-        {Array.from({ length: 13 }, (_, i) => (
-          <option key={i} value={i}>
-            {i === 12 ? '12+' : i}
-          </option>
-        ))}
-      </select>
-
-      {/* Автодополнение для города */}
       <Select
-        options={cities}
+        options={Array.from({ length: 13 }, (_, i) => ({
+          value: i === 12 ? '12+' : i,
+          label: i === 12 ? '12+' : i,
+        }))}
+        value={{ value: targetInfo, label: targetInfo }}
+        onChange={(selectedOption) => setTargetInfo(selectedOption.value)}
+        placeholder="Выберите возраст"
+        className="w-full"
+        isSearchable
+      />
+
+      {/* Асинхронный Select для городов */}
+      <AsyncSelect
+        cacheOptions
+        defaultOptions
+        loadOptions={loadCities}
         value={location}
         onChange={(selectedOption) => setLocation(selectedOption)}
         placeholder="Выберите город/населённый пункт"
         className="w-full"
-        isSearchable // Включаем поиск
-        noOptionsMessage={() => 'Город не найден'} // Сообщение, если город не найден
+        isSearchable
+        noOptionsMessage={() => 'Город не найден'}
       />
 
       <input

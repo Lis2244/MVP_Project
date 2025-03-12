@@ -115,7 +115,7 @@ router.get('/:id', async (req, res, next) => {
 /**
  * POST /api/announcements
  * Создание нового объявления с обязательной загрузкой до 5 изображений.
- * Обязательные поля: title, description, categories, target_info, а также хотя бы одно изображение.
+ * Обязательные поля: title, description, categories, target_info, location.
  */
 router.post(
   '/',
@@ -125,6 +125,7 @@ router.post(
   body('description').notEmpty().withMessage('Описание обязательно'),
   body('categories').notEmpty().withMessage('Выберите хотя бы одну категорию'),
   body('target_info').notEmpty().withMessage('Информация о целевой аудитории обязательна'),
+  body('location').notEmpty().withMessage('Город обязателен'),
   async (req, res, next) => {
     try {
       // Валидация полей
@@ -155,14 +156,14 @@ router.post(
       }
 
       // Сохранение объявления в базу данных
-      const { title, description, categories, target_info } = req.body;
+      const { title, description, categories, target_info, location } = req.body;
       const userId = req.user.id;
 
       const result = await db.query(
-        `INSERT INTO announcements (title, description, categories, target_info, image_url, user_id)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO announcements (title, description, categories, target_info, image_url, user_id, location)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *`,
-        [title, description, categories, target_info, JSON.stringify(processedFiles), userId]
+        [title, description, categories, target_info, JSON.stringify(processedFiles), userId, location]
       );
 
       res.status(201).json(result.rows[0]);
@@ -179,12 +180,12 @@ router.post(
  */
 router.put(
   '/:id',
-  authMiddleware, // Подключение middleware
+  authMiddleware,
   upload.array('images', 5),
   async (req, res, next) => {
     try {
       const announcementId = req.params.id;
-      const userId = req.user.id; // Данные пользователя из middleware
+      const userId = req.user.id;
 
       if (isNaN(announcementId)) {
         return res.status(400).json({ message: 'ID должен быть числом' });
@@ -196,10 +197,29 @@ router.put(
         return res.status(403).json({ message: 'Доступ запрещен' });
       }
 
-      // Логика обновления объявления
-      const { title, description, categories, target_info } = req.body;
+      const announcement = rows[0];
+      const { title, description, categories, target_info, location, imagesToDelete } = req.body;
 
-      let imageUrlsJson;
+      // Удаление указанных изображений
+      if (imagesToDelete) {
+        const imagesToDeleteArray = JSON.parse(imagesToDelete); // Преобразуем строку JSON в массив
+        if (imagesToDeleteArray.length > 0) {
+          imagesToDeleteArray.forEach(imagePath => {
+            const fullPath = path.join(__dirname, '..', imagePath);
+            if (fs.existsSync(fullPath)) {
+              fs.unlinkSync(fullPath);
+            }
+          });
+
+          // Обновляем список изображений
+          const currentImages = JSON.parse(announcement.image_url);
+          const updatedImages = currentImages.filter(image => !imagesToDeleteArray.includes(image));
+          announcement.image_url = JSON.stringify(updatedImages);
+        }
+      }
+
+      // Добавление новых изображений
+      let imageUrlsJson = announcement.image_url;
       if (req.files && req.files.length > 0) {
         const processedFiles = [];
         for (const file of req.files) {
@@ -208,7 +228,16 @@ router.put(
           await processImage(file.path, outputFilePath);
           processedFiles.push(`/uploads/${outputFileName}`);
         }
-        imageUrlsJson = JSON.stringify(processedFiles);
+
+        const currentImages = JSON.parse(imageUrlsJson);
+        const newImages = [...currentImages, ...processedFiles];
+
+        // Проверка на максимальное количество изображений (5)
+        if (newImages.length > 5) {
+          return res.status(400).json({ message: 'Максимальное количество изображений — 5' });
+        }
+
+        imageUrlsJson = JSON.stringify(newImages);
       }
 
       // Подготовка полей для обновления
@@ -230,6 +259,10 @@ router.put(
       if (target_info) {
         fields.push(`target_info = $${idx++}`);
         values.push(target_info);
+      }
+      if (location) {
+        fields.push(`location = $${idx++}`);
+        values.push(location);
       }
       if (imageUrlsJson) {
         fields.push(`image_url = $${idx++}`);
@@ -276,20 +309,13 @@ router.delete(
 
       // Удаление связанных изображений
       if (announcement.image_url) {
-        try {
-          const imagePaths = JSON.parse(announcement.image_url);
-          imagePaths.forEach(imagePath => {
-            const fullPath = path.join(__dirname, '..', imagePath);
-            if (fs.existsSync(fullPath)) {
-              fs.unlinkSync(fullPath);
-              console.log('Файл удален:', fullPath);
-            } else {
-              console.log('Файл не найден:', fullPath);
-            }
-          });
-        } catch (error) {
-          console.error('Ошибка при удалении файлов:', error);
-        }
+        const imagePaths = JSON.parse(announcement.image_url);
+        imagePaths.forEach(imagePath => {
+          const fullPath = path.join(__dirname, '..', imagePath);
+          if (fs.existsSync(fullPath)) {
+            fs.unlinkSync(fullPath);
+          }
+        });
       }
 
       // Удаление объявления из базы данных

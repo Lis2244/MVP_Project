@@ -33,10 +33,12 @@ app.use(express.static(path.join(__dirname, '../frontend/build')));
 const authRoutes = require('./routes/auth');
 const announcementRoutes = require('./routes/announcements');
 const userRoutes = require('./routes/users');
+const citiesRoutes = require('./routes/cities'); // Подключаем новый маршрут для городов
 
 app.use('/api/auth', authRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/cities', citiesRoutes); // Используем маршрут для городов
 
 // Корневой маршрут для проверки работы API
 app.get('/', (req, res) => {
